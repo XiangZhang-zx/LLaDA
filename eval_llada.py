@@ -72,19 +72,19 @@ class LLaDAEvalHarness(LM):
             self.accelerator = None
         
         model_kwargs = {}
-        if self.accelerator is not None:
+        if hasattr(self, 'accelerator') and self.accelerator is not None:
             model_kwargs.update({'device_map': {'': f'{self.accelerator.device}'}})
 
         self.model = AutoModel.from_pretrained(model_path, trust_remote_code=True, torch_dtype=torch.bfloat16, **model_kwargs)
         self.model.eval()
 
         self.device = torch.device(device)
-        if self.accelerator is not None:
+        if hasattr(self, 'accelerator') and self.accelerator is not None:
             self.model = self.accelerator.prepare(self.model)
             self.device = torch.device(f'{self.accelerator.device}')
             self._rank = self.accelerator.local_process_index
             self._world_size = self.accelerator.num_processes
-        else: 
+        else:
             self.model = self.model.to(device)
 
         self.mask_id = mask_id
@@ -274,7 +274,8 @@ class LLaDAEvalHarness(LM):
             generated_answer = self.tokenizer.decode(generated_answer_ids, skip_special_tokens=True)
             out.append(generated_answer)
 
-            self.accelerator.wait_for_everyone()
+            if hasattr(self, 'accelerator') and self.accelerator is not None:
+                self.accelerator.wait_for_everyone()
 
         return out
 
